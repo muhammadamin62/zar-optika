@@ -18,6 +18,16 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 # ==========================================
 # 1. НАСТРОЙКА БАЗЫ ДАННЫХ
 # ==========================================
+@app.before_first_request
+def debug_files():
+    print("--- СПИСОК ФАЙЛОВ В КОРНЕ ---")
+    print(os.listdir('.'))
+    if os.path.exists('templates'):
+        print("--- ФАЙЛЫ В TEMPLATES ---")
+        print(os.listdir('templates'))
+    else:
+        print("!!! ПАПКА TEMPLATES НЕ НАЙДЕНА !!!")
+
 def init_db():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -1579,3 +1589,4 @@ if __name__ == "__main__":
         init_db()           # База создастся прямо перед стартом
 
     app.run(debug=True, port=5000)
+
