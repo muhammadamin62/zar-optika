@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, g
 from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 app.secret_key = "optic_pro_system_2026_key"
 # Путь к папке с фото
 UPLOAD_FOLDER = os.path.join('static', 'uploads', 'frames')
@@ -1577,4 +1577,5 @@ def edit_lens_stock(lens_id):
 if __name__ == "__main__":
     with app.app_context(): # Это добавит стабильности
         init_db()           # База создастся прямо перед стартом
+
     app.run(debug=True, port=5000)
