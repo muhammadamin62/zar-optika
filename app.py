@@ -18,6 +18,14 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 # ==========================================
 # 1. НАСТРОЙКА БАЗЫ ДАННЫХ
 # ==========================================
+with app.app_context():
+    import os
+    print("--- СПИСОК ФАЙЛОВ В КОРНЕ ---")
+    print(os.listdir('.'))
+    if os.path.exists('templates'):
+        print("--- ФАЙЛЫ В TEMPLATES ---")
+        print(os.listdir('templates'))
+
 @app.before_first_request
 def debug_files():
     print("--- СПИСОК ФАЙЛОВ В КОРНЕ ---")
@@ -1589,4 +1597,5 @@ if __name__ == "__main__":
         init_db()           # База создастся прямо перед стартом
 
     app.run(debug=True, port=5000)
+
 
