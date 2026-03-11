@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <!-- Кнопка назад -->
+<a href="{{ url_for('seller_dashboard') }}" class="btn-back">
+    ⬅ Назад
+</a>
+
+<style>
+/* Стиль кнопки назад */
+.btn-back {
+    display: inline-block;
+    padding: 10px 20px;
+    margin-bottom: 20px;
+    background-color: #f5f5f5;
+    color: #333;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.btn-back:hover {
+    background-color: #4caf50;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+</style>
+
+  <meta charset="UTF-8">
+  <title>История операций</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="page">
+
+  <h1 class="title">📊 Финансовая история</h1>
+
+  <!-- TODAY -->
+  <section class="card fade-in">
+    <h2>Сегодня ({{ today }})</h2>
+
+    {% if today_ops %}
+      <div class="ops-list">
+        {% for op in today_ops %}
+          <div class="op-row {% if op.type=='приход' %}income{% else %}expense{% endif %}">
+            <span>{{ op.description }}</span>
+            <b>{{ op.amount }} сум</b>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">Сегодня операций пока нет.</p>
+    {% endif %}
+  </section>
+
+
+  <!-- ARCHIVE -->
+  <h2 class="subtitle">📦 Архив по дням</h2>
+
+  <div class="archive-grid">
+
+    {% for day in archive %}
+      <a href="/seller/history/{{ day.date }}" class="day-card fade-in">
+
+        <h3>{{ day.date }}</h3>
+
+        <p class="green">Приход: {{ day.income }} сум</p>
+        <p class="red">Расход: {{ day.expense }} сум</p>
+
+        <p class="total">
+          Итог:
+          <b>{{ day.income - day.expense }} сум</b>
+        </p>
+
+      </a>
+    {% endfor %}
+
+  </div>
+
+</div>
+
+</body>
+</html>

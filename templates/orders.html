@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head><title>Заказы</title></head>
+<body>
+<h1>Заказы</h1>
+<table border="1">
+<tr><th>ID</th><th>Оправa</th><th>Линза</th><th>R глаз</th><th>L глаз</th><th>DPP</th><th>Статус</th><th>Цена</th><th>Дата</th></tr>
+{% for order in orders %}
+<tr>
+<td>{{order[0]}}</td>
+<td>{{order[1]}}</td>
+<td>{{order[2]}}</td>
+<td>{{order[3]}}</td>
+<td>{{order[4]}}</td>
+<td>{{order[5]}}</td>
+<td>{{order[6]}}</td>
+<td>{{order[7]}}</td>
+<td>{{order[8]}}</td>
+</tr>
+{% endfor %}
+</table>
+<h2>Добавить заказ</h2>
+<form method="POST" action="/orders/add">
+Оправa: <input name="frame_name">
+Линза: <input name="lens_type">
+R глаз: <input name="right_eye">
+L глаз: <input name="left_eye">
+DPP: <input name="dpp">
+Цена: <input name="total_price" type="number">
+<button type="submit">Добавить</button>
+</form>
+<a href="/dashboard">Назад</a>
+</body>
+</html>

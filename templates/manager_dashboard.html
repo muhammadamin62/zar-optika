@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Панель Управляющего | Optical System</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --header: #334155;
+            --primary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* Шапка */
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--header); padding-bottom: 20px; margin-bottom: 20px; }
+
+        /* Навигация */
+        .nav-buttons { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn-toggle { padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; color: white; display: flex; align-items: center; gap: 8px; text-decoration: none; }
+
+        .btn-purple { background: var(--purple); } .btn-purple:hover { filter: brightness(1.2); }
+        .btn-red { background: var(--danger); }    .btn-red:hover { filter: brightness(1.2); }
+        .btn-blue { background: var(--primary); }   .btn-blue:hover { filter: brightness(1.2); }
+        .btn-gray { background: var(--header); }   .btn-gray:hover { background: #475569; }
+        .btn-green { background: var(--success); }  .btn-green:hover { filter: brightness(1.2); }
+
+        /* СТИЛЬНЫЕ КНОПКИ БЫСТРОГО ПЕРЕХОДА */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .quick-access {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 30px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+
+        .btn-nav {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            border-radius: 16px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .master-btn { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: 1px solid rgba(129, 140, 248, 0.5); }
+        .seller-btn { background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: 1px solid rgba(52, 211, 153, 0.5); }
+
+        .btn-nav:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 15px 30px rgba(0,0,0,0.4); }
+        .btn-nav::after {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: rotate(45deg); transition: 0.8s;
+        }
+        .btn-nav:hover::after { left: 120%; }
+        .nav-icon { font-size: 24px; background: rgba(255, 255, 255, 0.2); width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+
+        /* KPI Карточки */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .kpi-card { background: var(--card); padding: 25px; border-radius: 12px; border-left: 5px solid var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .kpi-title { font-size: 13px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; }
+        .kpi-value { font-size: 24px; font-weight: bold; }
+        .card-cash { border-left-color: #f59e0b; }
+        .card-profit { border-left-color: var(--success); }
+        .card-alert { border-left-color: var(--danger); background: #450a0a; }
+
+        /* Скрытые панели */
+        .hidden-panel { display: none; background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid #475569; margin-bottom: 20px; animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px; color: var(--text-muted); border-bottom: 1px solid var(--header); }
+        td { padding: 12px; border-bottom: 1px solid #2a3441; font-size: 14px; }
+
+        .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .action-panel { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--header); }
+        input, select, .form-btn { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--header); background: var(--bg); color: white; box-sizing: border-box; }
+        .form-btn { background: var(--success); border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .form-btn:hover { background: #059669; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2 style="margin: 0;">👁️ Управление Оптикой</h2>
+        <div style="display: flex; gap: 10px;">
+            <a href="/manager/full_report" class="btn-toggle btn-blue">📈 Полный отчет</a>
+            <a href="/logout" class="btn-toggle btn-red" style="padding: 8px 15px;">Выход</a>
+        </div>
+    </div>
+
+    <div class="quick-access">
+        <h3 style="margin-top:0; font-size:12px; color:var(--text-muted); letter-spacing:1px;">🚀 БЫСТРЫЙ ПЕРЕХОД</h3>
+        <div class="nav-grid">
+            <a href="{{ url_for('master_orders') }}" class="btn-nav master-btn">
+                <div class="nav-icon">🛠️</div>
+                <span>Цех Мастера</span>
+            </a>
+            <a href="{{ url_for('seller_dashboard') }}" class="btn-nav seller-btn">
+                <div class="nav-icon">💵</div>
+                <span>Касса Продавца</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="nav-buttons">
+        <button onclick="togglePanel('analyticsBlock')" class="btn-toggle btn-green">📊 Диаграмма</button>
+        <button onclick="togglePanel('topSalesBlock')" class="btn-toggle btn-purple">🔥 Топ продаж</button>
+        <button onclick="togglePanel('lensPurchaseBlock')" class="btn-toggle btn-red">📦 Закупки линз</button>
+        <button onclick="togglePanel('newLensRegBlock')" class="btn-toggle btn-blue">✨ Новые линзы</button>
+        <button onclick="togglePanel('activityLogBlock')" class="btn-toggle btn-gray">🕵️‍♂️ Журнал действий</button>
+    </div>
+
+    <div id="analyticsBlock" class="hidden-panel" style="border-color: var(--success);">
+        <div style="display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+            <div style="width: 250px; height: 250px;"><canvas id="mainChart"></canvas></div>
+            <div style="min-width: 300px;">
+                <h3 style="color: var(--success);">📊 Финансовый баланс</h3>
+                <ul style="list-style: none; padding: 0; line-height: 2;">
+                    <li>🟢 <b>Приход:</b> {{ "{:,}".format(income or 0) }}</li>
+                    <li>🔴 <b>Расходы:</b> {{ "{:,}".format(expenses or 0) }}</li>
+                    <li>🔵 <b>Вложения:</b> {{ "{:,}".format(investments or 0) }}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="topSalesBlock" class="hidden-panel" style="border-color: var(--purple);">
+        <div class="bottom-grid">
+            <div>
+                <h4 style="color: var(--purple);">🔥 Популярные Оправы</h4>
+                <table>
+                    {% for frame in top_frames %}
+                    <tr><td>{{ frame.name }}</td><td style="text-align: right; color: var(--success);">{{ frame.sales_count }} шт.</td></tr>
+                    {% endfor %}
+                </table>
+            </div>
+            <div>
+                <h4 style="color: #fbbf24;">📦 Прочее</h4>
+                <table>
+                    {% for item in top_others %}
+                    <tr><td>{{ item.description.replace('Прочее: ', '') }}</td><td style="text-align: right; color: #fbbf24;">{{ item.sales_count }} прод.</td></tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="lensPurchaseBlock" class="hidden-panel" style="border-color: var(--danger);">
+        <h3 style="color: var(--danger);">📦 История закупок линз</h3>
+        <table>
+            <thead><tr><th>Дата</th><th>Описание</th><th style="text-align: right;">Сумма</th></tr></thead>
+            <tbody>
+                {% for exp in lens_expenses %}
+                <tr><td>{{ exp.date }}</td><td>{{ exp.description }}</td><td style="text-align: right; color: #f87171;">-{{ "{:,}".format(exp.amount) }} сум</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="newLensRegBlock" class="hidden-panel" style="border-color: var(--primary);">
+        <h3 style="color: var(--primary);">✨ Новые позиции в каталоге</h3>
+        <table>
+            <thead><tr><th>Дата</th><th>Описание и Цена</th><th style="text-align: right;">Общий закуп</th></tr></thead>
+            <tbody>
+                {% for item in new_lens_history %}
+                <tr>
+                    <td>{{ item.date }}</td>
+                    <td>{{ item.description }}</td>
+                    <td style="text-align: right; color: #f87171; font-weight: bold;">{{ "{:,}".format(item.amount) }} сум</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="activityLogBlock" class="hidden-panel" style="border-color: var(--text-muted);">
+        <h3 style="color: white;">🕵️‍♂️ Журнал действий сотрудников</h3>
+        <table>
+            <thead><tr><th>Время</th><th>Роль</th><th>Действие</th><th>Подробности</th></tr></thead>
+            <tbody>
+                {% for log in logs %}
+                <tr><td>{{ log.date }}</td><td>{{ log.user_role }}</td><td>{{ log.action }}</td><td>{{ log.details }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card card-cash"><div class="kpi-title">💵 В сейфе</div><div class="kpi-value" style="color: #fcd34d;">{{ "{:,}".format(cash_on_hand or 0) }}</div></div>
+        <div class="kpi-card card-profit"><div class="kpi-title">📈 Чистая Прибыль</div><div class="kpi-value" style="color: var(--success);">{{ "{:,}".format(net_profit or 0) }}</div></div>
+        <div class="kpi-card card-orders"><div class="kpi-title">🛠️ В работе у мастера</div><div class="kpi-value">{{ active_orders_count }} заказов</div></div>
+        <div class="kpi-card card-alert"><div class="kpi-title">⚠️ Дефицит товара</div><div class="kpi-value" style="color: var(--danger);">{{ low_stock|length }} поз.</div></div>
+    </div>
+
+    <div class="bottom-grid">
+        <div class="action-panel">
+            <h3>💸 Операции по кассе</h3>
+            <form action="/manager/finance/action" method="POST">
+                <select name="action_type" required>
+                    <option value="расход">🔴 Расход / Изъятие</option>
+                    <option value="вложение">🔵 Вложение / Довложение</option>
+                </select>
+                <input type="text" name="description" placeholder="Укажите причину (например: Аренда)" required>
+                <input type="number" name="amount" placeholder="Сумма в сумах" required>
+                <button type="submit" class="form-btn">Выполнить транзакцию</button>
+            </form>
+        </div>
+        <div class="action-panel">
+            <h3 style="color: #fca5a5;">📉 Критические остатки</h3>
+            <div style="max-height: 220px; overflow-y: auto; padding-right: 5px;">
+                {% for item in low_stock %}
+                <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #2a3441;">
+                    <span>{{ item.name }}</span><span style="color: var(--danger); font-weight: bold;">{{ item.stock }} шт.</span>
+                </div>
+                {% else %}
+                <p style="opacity: 0.5; text-align: center;">Склад заполнен</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let myChart = null;
+function togglePanel(panelId) {
+    const panels = ['topSalesBlock', 'lensPurchaseBlock', 'activityLogBlock', 'analyticsBlock', 'newLensRegBlock'];
+    panels.forEach(id => {
+        const panel = document.getElementById(id);
+        if (id === panelId) {
+            const isOpening = panel.style.display !== 'block';
+            panel.style.display = isOpening ? 'block' : 'none';
+            if (id === 'analyticsBlock' && isOpening) {
+                setTimeout(renderChart, 100);
+            }
+        } else { panel.style.display = 'none'; }
+    });
+}
+
+function renderChart() {
+    const canvas = document.getElementById('mainChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (myChart) { myChart.destroy(); }
+    myChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Приход', 'Расходы', 'Вложения'],
+            datasets: [{
+                data: [{{ income or 0 }}, {{ expenses or 0 }}, {{ investments or 0 }}],
+                backgroundColor: ['#10b981', '#ef4444', '#3b82f6'],
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+</script>
+
+</body>
+</html>

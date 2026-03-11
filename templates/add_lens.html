@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Добавить линзы</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <a href="/master/lenses" class="back-btn">⬅ Назад к линзам</a>
+    <h1>👓 Добавление линз на склад</h1>
+
+    <form method="POST" class="card">
+        <label>Оптическая сила (Vision / Dioptria):</label>
+        <input type="text" name="vision" placeholder="Например: -2.50 или +1.75" required>
+
+        <label>Тип линзы:</label>
+        <input type="text" name="lens_type" placeholder="Например: Anti-glare, Photochromic" required>
+
+        <label>Цена за ПАРУ (сум):</label>
+        <input type="number" name="price" placeholder="120000" required>
+
+        <label>Количество штук (1 пара = 2 шт):</label>
+        <input type="number" name="stock" placeholder="20" required>
+
+        <button type="submit" class="btn" style="background: #4ade80; color: #000; width: 100%; margin-top: 15px;">💾 Сохранить линзы</button>
+    </form>
+</div>
+</body>
+</html>

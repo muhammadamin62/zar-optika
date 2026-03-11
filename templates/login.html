@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход | Optical System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+
+        body {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Живой градиент на фоне */
+            background: linear-gradient(-45deg, #0f172a, #1e293b, #334155, #020617);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            overflow: hidden;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Декоративные плавающие круги */
+        .circles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .circles li { position: absolute; list-style: none; display: block; background: rgba(56, 189, 248, 0.2); animation: animate 25s linear infinite; bottom: -150px; border-radius: 50%; }
+        .circles li:nth-child(1) { left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
+        .circles li:nth-child(2) { left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s; }
+        .circles li:nth-child(3) { left: 70%; width: 120px; height: 120px; animation-delay: 4s; }
+
+        @keyframes animate {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; border-radius: 0; }
+            100% { transform: translateY(-1000px) rotate(720deg); opacity: 0; border-radius: 50%; }
+        }
+
+        /* Карточка логина */
+        .login-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 50px 40px;
+            border-radius: 30px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            text-align: center;
+            transition: 0.5s;
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .login-card:hover { border-color: #38bdf8; box-shadow: 0 25px 50px rgba(56, 189, 248, 0.1); }
+
+        h2 { color: #fff; margin-bottom: 30px; font-weight: 600; letter-spacing: 2px; font-size: 28px; }
+        h2 span { color: #38bdf8; }
+
+        .input-box { position: relative; margin-bottom: 25px; }
+        .input-box input {
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #fff;
+            outline: none;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+
+        .input-box input:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #38bdf8;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            color: #000;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.4s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .login-btn:hover {
+            transform: scale(1.02);
+            filter: brightness(1.1);
+            box-shadow: 0 10px 20px rgba(56, 189, 248, 0.4);
+        }
+
+        .error-msg { color: #f87171; font-size: 14px; margin-bottom: 15px; display: none; }
+    </style>
+</head>
+<body>
+
+    <ul class="circles">
+        <li></li><li></li><li></li><li></li><li></li>
+    </ul>
+
+    <div class="login-card">
+        <h2>OPTICA<span>.</span>CRM</h2>
+        <form action="/login" method="POST">
+            <div class="input-box">
+                <input type="text" name="username" placeholder="Логин" required>
+            </div>
+            <div class="input-box">
+                <input type="password" name="password" placeholder="Пароль" required>
+            </div>
+            <button type="submit" class="login-btn">Войти в систему</button>
+        </form>
+    </div>
+
+</body>
+</html>

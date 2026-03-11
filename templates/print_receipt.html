@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Чек №{{ order.id }}</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; width: 300px; margin: 0 auto; padding: 20px; color: #000; }
+        .center { text-align: center; }
+        .line { border-bottom: 1px dashed #000; margin: 10px 0; }
+        .details { font-size: 14px; line-height: 1.6; }
+        .total { font-size: 18px; font-weight: bold; margin-top: 10px; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body onload="window.print()">
+    <div class="center">
+        <h2>OPTICAL STORE</h2>
+        <p>Квитанция №{{ order.id }}</p>
+        <p>{{ order.date }}</p>
+    </div>
+
+    <div class="line"></div>
+
+    <div class="details">
+        <b>Клиент:</b> {{ order.customer_name }}<br>
+        <b>Тел:</b> {{ order.customer_phone }}<br>
+        <div class="line"></div>
+        <b>Оправа:</b> {{ order.frame_name }}<br>
+        <b>Линза (R):</b> {{ order.vision_r }} {{ order.type_r }}<br>
+        <b>Линза (L):</b> {{ order.vision_l }} {{ order.type_l }}<br>
+        <b>PD (РЦ):</b> {{ order.pd }} мм
+    </div>
+
+    <div class="line"></div>
+
+    <div class="total center">
+        ИТОГО: {{ "{:,}".format(order.total_price) }} сум
+    </div>
+
+    <div class="center" style="margin-top: 20px; font-size: 12px;">
+        Спасибо за покупку!<br>
+        Берегите свои глаза.
+    </div>
+
+    <div class="no-print" style="margin-top: 30px; text-align: center;">
+        <button onclick="window.history.back()" style="padding: 10px;">← Назад</button>
+    </div>
+</body>
+</html>
