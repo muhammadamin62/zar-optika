@@ -50,16 +50,10 @@ def init_db():
 # 1. НАСТРОЙКА БАЗЫ ДАННЫХ
 # ==========================================
 
-def get_db():
-    # Используем одну основную базу
-    conn = sqlite3.connect('optics_crm.db')
-    conn.row_factory = sqlite3.Row 
-    return conn
-
 def init_db():
     db = get_db()
 
-    # 1. Таблица Оправ (Добавил photo, так как она нужна в коде ниже)
+    # 1. Таблица Оправ
     db.execute("""CREATE TABLE IF NOT EXISTS frames
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, buy_price INTEGER, 
                    sell_price INTEGER, stock INTEGER, photo TEXT)""")
@@ -69,15 +63,24 @@ def init_db():
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, vision TEXT, lens_type TEXT, 
                    price INTEGER, stock INTEGER)""")
 
-    # 3. Таблица Заказов (Добавил comment, так как он используется в add_order)
+    # 3. Таблица Заказов
     db.execute("""CREATE TABLE IF NOT EXISTS orders
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_name TEXT, customer_phone TEXT,
                    frame_id INTEGER, lens_id_right INTEGER, lens_id_left INTEGER, pd TEXT,
                    total_price INTEGER, status TEXT, date TEXT, comment TEXT, is_updated INTEGER DEFAULT 0)""")
 
-    # Миграция: добавление колонок, если база уже создана без них
+    # --- МИГРАЦИИ (Добавление колонок в существующую базу) ---
+    try:
+        db.execute("ALTER TABLE frames ADD COLUMN photo TEXT DEFAULT 'no_image.png'")
+    except sqlite3.OperationalError:
+        pass # Колонка уже есть
+
     try:
         db.execute("ALTER TABLE orders ADD COLUMN is_updated INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
         db.execute("ALTER TABLE orders ADD COLUMN comment TEXT")
     except sqlite3.OperationalError:
         pass
@@ -100,11 +103,6 @@ def init_db():
     db.commit()
     db.close()
     print("✅ База данных успешно инициализирована!")
-
-# ЗАПУСК ИНИЦИАЛИЗАЦИИ ПРИ СТАРТЕ (БЕЗ before_first_request)
-with app.app_context():
-    init_db()
-
 # ОБЯЗАТЕЛЬНО ВЫЗЫВАЕМ ЭТУ ФУНКЦИЮ ПОСЛЕ ОПРЕДЕЛЕНИЯ
 
 def log_action(user_role, action, details):
@@ -1571,6 +1569,7 @@ if __name__ == "__main__":
         init_db()           # База создастся прямо перед стартом
 
     app.run(debug=True, port=5000)
+
 
 
 
