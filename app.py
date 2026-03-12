@@ -53,7 +53,7 @@ def get_db():
     return conn
 # Запускаем создание таблиц
 def init_db():ы
-    db = get_db()
+db = get_db()
 
     # 1. Таблица Оправ
     db.execute("""CREATE TABLE IF NOT EXISTS frames
@@ -62,7 +62,7 @@ def init_db():ы
 
     # --- ДОБАВЬ ЭТОТ БЛОК ДЛЯ МИГРАЦИИ ФОТО ---
     try:
-        db.execute("ALTER TABLE frames ADD COLUMN photo TEXT DEFAULT 'no_image.png'")
+    db.execute("ALTER TABLE frames ADD COLUMN photo TEXT DEFAULT 'no_image.png'")
         print("✅ Колонка photo добавлена в frames")
     except sqlite3.OperationalError:
         pass # Значит колонка уже есть
@@ -1576,4 +1576,5 @@ def edit_lens_stock(lens_id):
 if __name__ == "__main__":
     with app.app_context(): # Это добавит стабильности
         init_db()           # База создастся прямо перед стартом
+
     app.run(debug=True, port=5000)
