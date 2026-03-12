@@ -18,6 +18,15 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 # ==========================================
 # 1. НАСТРОЙКА БАЗЫ ДАННЫХ
 # ==========================================
+# ... (настройка app и UPLOAD_FOLDER)
+
+def get_db():
+    conn = sqlite3.connect('optics_crm.db')
+    conn.row_factory = sqlite3.Row 
+    return conn
+
+# И только ПОТОМ все остальные функции, включая init_db() и inventory()
+
 def init_db():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -1569,6 +1578,7 @@ if __name__ == "__main__":
         init_db()           # База создастся прямо перед стартом
 
     app.run(debug=True, port=5000)
+
 
 
 
