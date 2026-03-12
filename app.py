@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, g
 from werkzeug.utils import secure_filename
 
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__)
 app.secret_key = "optic_pro_system_2026_key"
 # Путь к папке с фото
 UPLOAD_FOLDER = os.path.join('static', 'uploads', 'frames')
@@ -18,17 +18,8 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 # ==========================================
 # 1. НАСТРОЙКА БАЗЫ ДАННЫХ
 # ==========================================
-# ... (настройка app и UPLOAD_FOLDER)
-
-def get_db():
-    conn = sqlite3.connect('optics_crm.db')
-    conn.row_factory = sqlite3.Row 
-    return conn
-
-# И только ПОТОМ все остальные функции, включая init_db() и inventory()
-
 def init_db():
-    conn = sqlite3.connect('optics_crm.db')
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
 
     # Создаем таблицу линз
@@ -55,17 +46,27 @@ def init_db():
     conn.commit()
     conn.close()
 
-# ==========================================
-# 1. НАСТРОЙКА БАЗЫ ДАННЫХ
-# ==========================================
-
-def init_db():
+def get_db():
+    # Создаем соединение с основной базой проекта
+    conn = sqlite3.connect('optics_crm.db')
+    conn.row_factory = sqlite3.Row # Позволяет обращаться к данным по именам (как к словарю)
+    return conn
+# Запускаем создание таблиц
+def init_db():ы
     db = get_db()
 
     # 1. Таблица Оправ
     db.execute("""CREATE TABLE IF NOT EXISTS frames
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, buy_price INTEGER, 
-                   sell_price INTEGER, stock INTEGER, photo TEXT)""")
+                   sell_price INTEGER, stock INTEGER)""")
+
+    # --- ДОБАВЬ ЭТОТ БЛОК ДЛЯ МИГРАЦИИ ФОТО ---
+    try:
+        db.execute("ALTER TABLE frames ADD COLUMN photo TEXT DEFAULT 'no_image.png'")
+        print("✅ Колонка photo добавлена в frames")
+    except sqlite3.OperationalError:
+        pass # Значит колонка уже есть
+    # ------------------------------------------
 
     # 2. Таблица Линз
     db.execute("""CREATE TABLE IF NOT EXISTS lenses
@@ -76,30 +77,27 @@ def init_db():
     db.execute("""CREATE TABLE IF NOT EXISTS orders
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_name TEXT, customer_phone TEXT,
                    frame_id INTEGER, lens_id_right INTEGER, lens_id_left INTEGER, pd TEXT,
-                   total_price INTEGER, status TEXT, date TEXT, comment TEXT, is_updated INTEGER DEFAULT 0)""")
+                   total_price INTEGER, status TEXT, date TEXT, is_updated INTEGER DEFAULT 0)""")
 
-    # --- МИГРАЦИИ (Добавление колонок в существующую базу) ---
-    try:
-        db.execute("ALTER TABLE frames ADD COLUMN photo TEXT DEFAULT 'no_image.png'")
-    except sqlite3.OperationalError:
-        pass # Колонка уже есть
-
+    # Миграция для заказов (у тебя она уже была, оставляем)
     try:
         db.execute("ALTER TABLE orders ADD COLUMN is_updated INTEGER DEFAULT 0")
     except sqlite3.OperationalError:
         pass
 
+    # --- ДОБАВЬ ЕЩЕ МИГРАЦИЮ ДЛЯ COMMENT (рецепт) ---
     try:
         db.execute("ALTER TABLE orders ADD COLUMN comment TEXT")
     except sqlite3.OperationalError:
         pass
+    # -----------------------------------------------
 
     # 4. Таблица Финансов
     db.execute("""CREATE TABLE IF NOT EXISTS finance
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT, amount INTEGER, 
                    description TEXT, date TEXT)""")
 
-    # 5. Таблица Аксессуаров
+    # 5. ТАБЛИЦА АКСЕССУАРОВ
     db.execute("""CREATE TABLE IF NOT EXISTS accessories
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                    category TEXT NOT NULL, name TEXT NOT NULL, 
@@ -112,7 +110,9 @@ def init_db():
     db.commit()
     db.close()
     print("✅ База данных успешно инициализирована!")
+
 # ОБЯЗАТЕЛЬНО ВЫЗЫВАЕМ ЭТУ ФУНКЦИЮ ПОСЛЕ ОПРЕДЕЛЕНИЯ
+init_db()
 
 def log_action(user_role, action, details):
     db = get_db()
@@ -1576,11 +1576,4 @@ def edit_lens_stock(lens_id):
 if __name__ == "__main__":
     with app.app_context(): # Это добавит стабильности
         init_db()           # База создастся прямо перед стартом
-
     app.run(debug=True, port=5000)
-
-
-
-
-
-
