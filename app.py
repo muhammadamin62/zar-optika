@@ -18,24 +18,6 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 # ==========================================
 # 1. НАСТРОЙКА БАЗЫ ДАННЫХ
 # ==========================================
-with app.app_context():
-    import os
-    print("--- СПИСОК ФАЙЛОВ В КОРНЕ ---")
-    print(os.listdir('.'))
-    if os.path.exists('templates'):
-        print("--- ФАЙЛЫ В TEMPLATES ---")
-        print(os.listdir('templates'))
-
-@app.before_first_request
-def debug_files():
-    print("--- СПИСОК ФАЙЛОВ В КОРНЕ ---")
-    print(os.listdir('.'))
-    if os.path.exists('templates'):
-        print("--- ФАЙЛЫ В TEMPLATES ---")
-        print(os.listdir('templates'))
-    else:
-        print("!!! ПАПКА TEMPLATES НЕ НАЙДЕНА !!!")
-
 def init_db():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -64,34 +46,39 @@ def init_db():
     conn.commit()
     conn.close()
 
+# ==========================================
+# 1. НАСТРОЙКА БАЗЫ ДАННЫХ
+# ==========================================
+
 def get_db():
-    # Создаем соединение с основной базой проекта
+    # Используем одну основную базу
     conn = sqlite3.connect('optics_crm.db')
-    conn.row_factory = sqlite3.Row # Позволяет обращаться к данным по именам (как к словарю)
+    conn.row_factory = sqlite3.Row 
     return conn
-# Запускаем создание таблиц
+
 def init_db():
     db = get_db()
 
-    # 1. Таблица Оправ
+    # 1. Таблица Оправ (Добавил photo, так как она нужна в коде ниже)
     db.execute("""CREATE TABLE IF NOT EXISTS frames
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, buy_price INTEGER, 
-                   sell_price INTEGER, stock INTEGER)""")
+                   sell_price INTEGER, stock INTEGER, photo TEXT)""")
 
     # 2. Таблица Линз
     db.execute("""CREATE TABLE IF NOT EXISTS lenses
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, vision TEXT, lens_type TEXT, 
                    price INTEGER, stock INTEGER)""")
 
-    # 3. Таблица Заказов
+    # 3. Таблица Заказов (Добавил comment, так как он используется в add_order)
     db.execute("""CREATE TABLE IF NOT EXISTS orders
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_name TEXT, customer_phone TEXT,
                    frame_id INTEGER, lens_id_right INTEGER, lens_id_left INTEGER, pd TEXT,
-                   total_price INTEGER, status TEXT, date TEXT, is_updated INTEGER DEFAULT 0)""")
+                   total_price INTEGER, status TEXT, date TEXT, comment TEXT, is_updated INTEGER DEFAULT 0)""")
 
-    # Попытка добавить колонку, если её нет
+    # Миграция: добавление колонок, если база уже создана без них
     try:
         db.execute("ALTER TABLE orders ADD COLUMN is_updated INTEGER DEFAULT 0")
+        db.execute("ALTER TABLE orders ADD COLUMN comment TEXT")
     except sqlite3.OperationalError:
         pass
 
@@ -100,38 +87,25 @@ def init_db():
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT, amount INTEGER, 
                    description TEXT, date TEXT)""")
 
-    # 5. ТАБЛИЦА АКСЕССУАРОВ (Прочие товары) - ТЕПЕРЬ ОНА ТОЧНО СОЗДАСТСЯ
+    # 5. Таблица Аксессуаров
     db.execute("""CREATE TABLE IF NOT EXISTS accessories
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                   category TEXT NOT NULL, 
-                   name TEXT NOT NULL, 
-                   price INTEGER NOT NULL, 
-                   stock INTEGER NOT NULL)""")
+                   category TEXT NOT NULL, name TEXT NOT NULL, 
+                   price INTEGER NOT NULL, stock INTEGER NOT NULL)""")
 
-    # 6. Журнал активности сотрудников
+    # 6. Журнал активности
     db.execute("""CREATE TABLE IF NOT EXISTS activity_log
-                  (
-                      id
-                      INTEGER
-                      PRIMARY
-                      KEY
-                      AUTOINCREMENT,
-                      user_role
-                      TEXT,
-                      action
-                      TEXT,
-                      details
-                      TEXT,
-                      date
-                      TEXT
-                  )""")
+                  (id INTEGER PRIMARY KEY AUTOINCREMENT, user_role TEXT, action TEXT, details TEXT, date TEXT)""")
 
     db.commit()
     db.close()
     print("✅ База данных успешно инициализирована!")
 
+# ЗАПУСК ИНИЦИАЛИЗАЦИИ ПРИ СТАРТЕ (БЕЗ before_first_request)
+with app.app_context():
+    init_db()
+
 # ОБЯЗАТЕЛЬНО ВЫЗЫВАЕМ ЭТУ ФУНКЦИЮ ПОСЛЕ ОПРЕДЕЛЕНИЯ
-init_db()
 
 def log_action(user_role, action, details):
     db = get_db()
@@ -1597,5 +1571,6 @@ if __name__ == "__main__":
         init_db()           # База создастся прямо перед стартом
 
     app.run(debug=True, port=5000)
+
 
 
