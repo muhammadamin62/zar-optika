@@ -56,60 +56,60 @@ def init_db():ы
 db = get_db()
 
     # 1. Таблица Оправ
-    db.execute("""CREATE TABLE IF NOT EXISTS frames
+db.execute("""CREATE TABLE IF NOT EXISTS frames
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, buy_price INTEGER, 
                    sell_price INTEGER, stock INTEGER)""")
 
     # --- ДОБАВЬ ЭТОТ БЛОК ДЛЯ МИГРАЦИИ ФОТО ---
     try:
-    db.execute("ALTER TABLE frames ADD COLUMN photo TEXT DEFAULT 'no_image.png'")
+db.execute("ALTER TABLE frames ADD COLUMN photo TEXT DEFAULT 'no_image.png'")
         print("✅ Колонка photo добавлена в frames")
     except sqlite3.OperationalError:
         pass # Значит колонка уже есть
     # ------------------------------------------
 
     # 2. Таблица Линз
-    db.execute("""CREATE TABLE IF NOT EXISTS lenses
+db.execute("""CREATE TABLE IF NOT EXISTS lenses
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, vision TEXT, lens_type TEXT, 
                    price INTEGER, stock INTEGER)""")
 
     # 3. Таблица Заказов
-    db.execute("""CREATE TABLE IF NOT EXISTS orders
+db.execute("""CREATE TABLE IF NOT EXISTS orders
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_name TEXT, customer_phone TEXT,
                    frame_id INTEGER, lens_id_right INTEGER, lens_id_left INTEGER, pd TEXT,
                    total_price INTEGER, status TEXT, date TEXT, is_updated INTEGER DEFAULT 0)""")
 
     # Миграция для заказов (у тебя она уже была, оставляем)
     try:
-        db.execute("ALTER TABLE orders ADD COLUMN is_updated INTEGER DEFAULT 0")
+db.execute("ALTER TABLE orders ADD COLUMN is_updated INTEGER DEFAULT 0")
     except sqlite3.OperationalError:
         pass
 
     # --- ДОБАВЬ ЕЩЕ МИГРАЦИЮ ДЛЯ COMMENT (рецепт) ---
     try:
-        db.execute("ALTER TABLE orders ADD COLUMN comment TEXT")
+db.execute("ALTER TABLE orders ADD COLUMN comment TEXT")
     except sqlite3.OperationalError:
         pass
     # -----------------------------------------------
 
     # 4. Таблица Финансов
-    db.execute("""CREATE TABLE IF NOT EXISTS finance
+db.execute("""CREATE TABLE IF NOT EXISTS finance
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT, amount INTEGER, 
                    description TEXT, date TEXT)""")
 
     # 5. ТАБЛИЦА АКСЕССУАРОВ
-    db.execute("""CREATE TABLE IF NOT EXISTS accessories
+db.execute("""CREATE TABLE IF NOT EXISTS accessories
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                    category TEXT NOT NULL, name TEXT NOT NULL, 
                    price INTEGER NOT NULL, stock INTEGER NOT NULL)""")
 
     # 6. Журнал активности
-    db.execute("""CREATE TABLE IF NOT EXISTS activity_log
+db.execute("""CREATE TABLE IF NOT EXISTS activity_log
                   (id INTEGER PRIMARY KEY AUTOINCREMENT, user_role TEXT, action TEXT, details TEXT, date TEXT)""")
 
-    db.commit()
-    db.close()
-    print("✅ База данных успешно инициализирована!")
+db.commit()
+db.close()
+print("✅ База данных успешно инициализирована!")
 
 # ОБЯЗАТЕЛЬНО ВЫЗЫВАЕМ ЭТУ ФУНКЦИЮ ПОСЛЕ ОПРЕДЕЛЕНИЯ
 init_db()
@@ -1578,3 +1578,4 @@ if __name__ == "__main__":
         init_db()           # База создастся прямо перед стартом
 
     app.run(debug=True, port=5000)
+
