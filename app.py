@@ -28,7 +28,7 @@ def get_db():
 # И только ПОТОМ все остальные функции, включая init_db() и inventory()
 
 def init_db():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect('optics_crm.db')
     cursor = conn.cursor()
 
     # Создаем таблицу линз
@@ -1578,6 +1578,7 @@ if __name__ == "__main__":
         init_db()           # База создастся прямо перед стартом
 
     app.run(debug=True, port=5000)
+
 
 
 
