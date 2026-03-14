@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Новый заказ | Оптика</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Базовые стили */
+        body { background: #0f172a; color: white; font-family: 'Segoe UI', sans-serif; padding: 20px; }
+        input, select, textarea {
+            background-color: #1e293b !important; color: #ffffff !important;
+            border: 1px solid #334155; padding: 12px; border-radius: 8px;
+            font-size: 16px; width: 100%; box-sizing: border-box; margin-bottom: 10px;
+        }
+        label { font-weight: bold; color: #4ade80; margin-top: 15px; display: block; }
+        .card { background: #1f1f1f; padding: 20px; border-radius: 12px; border: 1px solid #333; margin-bottom: 20px; }
+
+        .type-selector input { display: none; }
+        .chip {
+            padding: 10px 20px; background: #334155; border: 1px solid #475569;
+            border-radius: 10px; cursor: pointer; transition: 0.3s; display: inline-block;
+        }
+        .type-selector input:checked + .chip { background: #38bdf8; color: #000; font-weight: bold; }
+
+        .price-card {
+            background: #222; padding: 15px; border-radius: 8px;
+            margin-top: 20px; border-left: 5px solid #4ade80;
+        }
+
+        .eye-box {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #334155;
+            margin-bottom: 15px;
+        }
+
+        /* Стили для выбора оплаты */
+        .payment-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .pay-option { position: relative; cursor: pointer; }
+        .pay-option input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .pay-box {
+            background: #1e293b; border: 2px solid #334155; border-radius: 12px;
+            padding: 15px; text-align: center; transition: all 0.2s;
+            display: flex; flex-direction: column; align-items: center; gap: 5px;
+        }
+        .pay-option input:checked + .pay-box {
+            border-color: #3b82f6; background: rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+        }
+        .pay-icon { font-size: 20px; }
+        .pay-text { font-size: 13px; font-weight: bold; color: #94a3b8; }
+        .pay-option input:checked + .pay-box .pay-text { color: white; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printReceipt, #printReceipt * { visibility: visible; }
+            #printReceipt { position: absolute; left: 0; top: 0; width: 80mm; background: white; color: black; padding: 10px; font-family: monospace; }
+        }
+        #printReceipt { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="printReceipt">
+    <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px;">
+        <h2>OPTICAL SYSTEM</h2>
+        <p>г. Бухара</p>
+    </div>
+    <p><b>Клиент:</b> <span id="p_name"></span></p>
+    <p><b>Телефон:</b> <span id="p_phone"></span></p>
+    <p><b>Оправа:</b> <span id="p_frame"></span></p>
+    <p><b>Линза R:</b> <span id="p_lens_r"></span></p>
+    <p><b>Линза L:</b> <span id="p_lens_l"></span></p>
+    <p><b>ИТОГО:</b> <span id="p_total"></span> СУМ</p>
+</div>
+
+<div class="container">
+    <a href="{{ url_for('seller_dashboard') }}" class="back-btn" style="color: #888; text-decoration: none;">⬅ Назад</a>
+    <h1>🛒 Оформление заказа</h1>
+
+    <form method="POST" class="card" id="orderForm" onsubmit="handleOrderSubmit(event)">
+        <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+            <label class="type-selector">
+                <input type="checkbox" name="is_repair" id="repairToggle" onchange="toggleOrderType()">
+                <span class="chip">🔧 Ремонт</span>
+            </label>
+            <label class="type-selector">
+                <input type="checkbox" name="is_mini_repair" id="miniRepairToggle" onchange="toggleOrderType()">
+                <span class="chip">⚡ Мини-ремонт</span>
+            </label>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div><label>Клиент:</label><input type="text" name="customer_name" id="c_name" required></div>
+            <div><label>Телефон:</label><input type="text" name="customer_phone" id="c_phone" required></div>
+        </div>
+
+        <div id="frameSelectionBlock">
+            <label>Оправа:</label>
+            <div style="margin-bottom: 10px;">
+                <input type="checkbox" name="is_client_frame" id="clientFrame" onchange="toggleClientFrame()"> Оправа клиента
+            </div>
+            <input type="text" name="frame_name" id="frameInput" list="frame_list" placeholder="Поиск оправы..." onchange="updatePrice()">
+            <datalist id="frame_list">
+                {% for frame in frames %}
+                    <option value="{{ frame.name }}" data-price="{{ frame.sell_price }}">Склад: {{ frame.stock }}</option>
+                {% endfor %}
+            </datalist>
+        </div>
+
+        <div id="lensSelectionBlock">
+            <label>Линзы:</label>
+            <div class="eye-box" style="border-left: 4px solid #38bdf8;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="color: #38bdf8; font-weight: bold;">Правый глаз (R)</span>
+                    <select id="modeR" onchange="toggleEyeMode('R')" style="width: auto; margin: 0; padding: 5px;">
+                        <option value="stock">Из склада</option>
+                        <option value="manual">Вручную</option>
+                    </select>
+                </div>
+                <div id="stock_R">
+                    <input type="text" name="lens_name_right" id="lensR" list="lens_stock" placeholder="Поиск в базе..." onchange="updatePrice()">
+                </div>
+                <div id="manual_R" style="display: none;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                        <input type="text" name="sph_r" id="sph_r" placeholder="SPH">
+                        <input type="text" name="cyl_r" id="cyl_r" placeholder="CYL">
+                        <input type="text" name="ax_r" id="ax_r" placeholder="AX">
+                    </div>
+                </div>
+            </div>
+
+            <div class="eye-box" style="border-left: 4px solid #4ade80;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="color: #4ade80; font-weight: bold;">Левый глаз (L)</span>
+                    <select id="modeL" onchange="toggleEyeMode('L')" style="width: auto; margin: 0; padding: 5px;">
+                        <option value="stock">Из склада</option>
+                        <option value="manual">Вручную</option>
+                    </select>
+                </div>
+                <div id="stock_L">
+                    <input type="text" name="lens_name_left" id="lensL" list="lens_stock" placeholder="Поиск в базе..." onchange="updatePrice()">
+                </div>
+                <div id="manual_L" style="display: none;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                        <input type="text" name="sph_l" id="sph_l" placeholder="SPH">
+                        <input type="text" name="cyl_l" id="cyl_l" placeholder="CYL">
+                        <input type="text" name="ax_l" id="ax_l" placeholder="AX">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div><label>РЦ (PD):</label><input type="text" name="pd" id="c_pd" placeholder="62-64"></div>
+                <div><label>Доп. цена за линзы:</label><input type="number" name="custom_lens_price" id="customPrice" value="0" oninput="updatePrice()"></div>
+            </div>
+        </div>
+
+        <label>Комментарий / Рецепт:</label>
+        <textarea name="comment" id="c_comment" rows="2"></textarea>
+
+        <label>Способ оплаты:</label>
+        <div class="payment-options">
+            <label class="pay-option">
+                <input type="radio" name="payment_method" value="Наличные" checked>
+                <div class="pay-box">
+                    <span class="pay-icon">💵</span>
+                    <span class="pay-text">Наличные</span>
+                </div>
+            </label>
+            <label class="pay-option">
+                <input type="radio" name="payment_method" value="Карта">
+                <div class="pay-box">
+                    <span class="pay-icon">💳</span>
+                    <span class="pay-text">Карта</span>
+                </div>
+            </label>
+            <label class="pay-option">
+                <input type="radio" name="payment_method" value="Click">
+                <div class="pay-box">
+                    <span class="pay-icon">📲</span>
+                    <span class="pay-text">Click</span>
+                </div>
+            </label>
+        </div>
+
+        <div class="price-card">
+            <h2 style="margin:0;">Итого: <span id="totalDisplay">30,000</span> сум</h2>
+            <small id="priceBreakdown" style="color: #888;"></small>
+        </div>
+
+        <button type="submit" class="btn" style="background: #4ade80; color: #000; width: 100%; margin-top: 15px; font-weight: bold; font-size: 18px; border: none; padding: 15px; border-radius: 10px; cursor: pointer;">✅ Создать заказ</button>
+    </form>
+</div>
+
+<datalist id="lens_stock">
+    {% for lens in lenses %}
+        <option value="{{ lens.vision }} {{ lens.lens_type }}" data-price="{{ lens.price }}">Цена: {{ lens.price }}</option>
+    {% endfor %}
+</datalist>
+
+<script>
+function toggleEyeMode(eye) {
+    const mode = document.getElementById('mode' + eye).value;
+    document.getElementById('stock_' + eye).style.display = (mode === 'stock') ? 'block' : 'none';
+    document.getElementById('manual_' + eye).style.display = (mode === 'manual') ? 'block' : 'none';
+    updatePrice();
+}
+
+function toggleOrderType() {
+    const isMini = document.getElementById('miniRepairToggle').checked;
+    const isRepair = document.getElementById('repairToggle').checked;
+    const lensBlock = document.getElementById('lensSelectionBlock');
+    const frameBlock = document.getElementById('frameSelectionBlock');
+
+    if (isMini || isRepair) {
+        lensBlock.style.display = 'none';
+        frameBlock.style.display = isMini ? 'none' : 'block';
+    } else {
+        lensBlock.style.display = 'block';
+        frameBlock.style.display = 'block';
+    }
+    updatePrice();
+}
+
+function toggleClientFrame() {
+    const isClient = document.getElementById('clientFrame').checked;
+    const fInput = document.getElementById('frameInput');
+    fInput.disabled = isClient;
+    if(isClient) fInput.value = "";
+    updatePrice();
+}
+
+function updatePrice() {
+    const workFee = 30000;
+    const frameInput = document.getElementById("frameInput");
+    const frameOpt = Array.from(document.getElementById("frame_list").options).find(o => o.value === frameInput.value);
+    const fPrice = (frameOpt && !document.getElementById('clientFrame').checked) ? parseInt(frameOpt.getAttribute("data-price")) : 0;
+
+    let lPrice = 0;
+    const lensOptions = Array.from(document.getElementById("lens_stock").options);
+    const optR = lensOptions.find(o => o.value === document.getElementById("lensR").value);
+    const optL = lensOptions.find(o => o.value === document.getElementById("lensL").value);
+
+    lPrice += optR ? parseInt(optR.getAttribute("data-price")) : 0;
+    lPrice += optL ? parseInt(optL.getAttribute("data-price")) : 0;
+
+    const customP = parseInt(document.getElementById("customPrice").value) || 0;
+    const isService = document.getElementById('repairToggle').checked || document.getElementById('miniRepairToggle').checked;
+
+    const total = fPrice + lPrice + customP + (isService ? 0 : workFee);
+
+    document.getElementById("totalDisplay").innerText = total.toLocaleString();
+    document.getElementById("priceBreakdown").innerText = `Расчет: Оправа(${fPrice}) + Линзы(${lPrice + customP}) + Работа(${isService ? 0 : workFee})`;
+}
+
+function handleOrderSubmit(event) {
+    document.getElementById('p_name').innerText = document.getElementById('c_name').value;
+    document.getElementById('p_phone').innerText = document.getElementById('c_phone').value;
+    document.getElementById('p_frame').innerText = document.getElementById('frameInput').value || "Своя/Ремонт";
+    document.getElementById('p_total').innerText = document.getElementById('totalDisplay').innerText;
+
+    document.getElementById('printReceipt').style.display = 'block';
+    window.print();
+    document.getElementById('printReceipt').style.display = 'none';
+    // Форма отправится сама после печати
+}
+</script>
+</body>
+</html>

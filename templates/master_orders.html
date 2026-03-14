@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Заказы мастера — Очередь</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body { background: #0f172a; color: white; font-family: 'Segoe UI', sans-serif; padding: 20px; }
+        .container { max-width: 850px; margin: 0 auto; }
+        .orders-grid { display: flex; flex-direction: column; gap: 20px; margin-top: 20px; }
+
+        .order-card {
+            background: #1e293b;
+            padding: 25px;
+            border-radius: 16px;
+            border-left: 6px solid #3b82f6;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            transition: 0.3s;
+        }
+        .order-card.special { border-left-color: #ef4444; background: #261a22; }
+
+        .status-badge {
+            background: rgba(255,255,255,0.1);
+            padding: 5px 12px; border-radius: 8px; font-size: 13px; font-weight: bold;
+        }
+
+        .recipe-box {
+            background: rgba(59, 130, 246, 0.15);
+            padding: 15px; border-radius: 10px;
+            border: 1px dashed #3b82f6; margin: 15px 0;
+        }
+
+        .lens-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+            background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin: 15px 0;
+        }
+
+        /* Кнопки */
+        .btn-group { display: flex; gap: 10px; }
+
+        .btn-complete {
+            background: #10b981; color: white; border: none; padding: 12px 24px;
+            border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+
+        .btn-defect-trigger {
+            background: #f59e0b; color: #000; border: none; padding: 12px 18px;
+            border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+
+        .btn-complete:hover, .btn-defect-trigger:hover { filter: brightness(1.2); transform: translateY(-2px); }
+
+        /* Модальное окно */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background: #1e293b; margin: 10% auto; padding: 30px;
+            border-radius: 20px; width: 400px; border: 1px solid #f59e0b;
+        }
+        .modal input, .modal select {
+            width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px;
+            background: #0f172a; border: 1px solid #334155; color: white;
+        }
+
+        .back-btn { color: #94a3b8; text-decoration: none; display: inline-block; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="/master" class="back-btn">⬅ Назад в меню</a>
+    <h1>🧾 Очередь на сборку</h1>
+
+    <div class="orders-grid">
+        {% for order in orders %}
+        <div class="order-card {{ 'special' if order.comment }}">
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0;">Заказ №{{ order.id }} — {{ order.customer_name }}</h3>
+                <span class="status-badge">{{ order.status }}</span>
+            </div>
+
+            <p style="margin: 15px 0 5px;">🕶 <b>Оправа:</b>
+                <span style="color: #4ade80; font-size: 1.1em;">{{ order.f_name if order.f_name else 'Своя оправа' }}</span>
+            </p>
+
+            {% if order.comment %}
+                <div class="recipe-box">
+                    <p style="margin: 0; color: #60a5fa; font-weight: bold; font-size: 0.9em;">📝 РЕЦЕПТ / СПЕЦЗАКАЗ:</p>
+                    <p style="font-size: 22px; margin: 10px 0; color: #fff; letter-spacing: 1px; font-family: monospace;">
+                        {{ order.comment }}
+                    </p>
+                </div>
+            {% else %}
+                <div class="lens-grid">
+                    <div>
+                        <small style="color: #94a3b8;">Правый (OD)</small>
+                        <p style="margin: 5px 0; font-weight: bold; font-size: 1.1em;">{{ order.vision_right if order.vision_right else '—' }}</p>
+                    </div>
+                    <div>
+                        <small style="color: #94a3b8;">Левый (OS)</small>
+                        <p style="margin: 5px 0; font-weight: bold; font-size: 1.1em;">{{ order.vision_left if order.vision_left else '—' }}</p>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+                <p style="margin: 0;">📏 <b>РЦ (PD):</b> {{ order.pd }} мм</p>
+
+                <div class="btn-group">
+                    <button type="button" class="btn-defect-trigger" onclick="openDefectModal()">🚨 БРАК</button>
+
+                    <form method="POST" action="{{ url_for('complete_order', order_id=order.id) }}">
+                        <button type="submit" class="btn-complete">✅ ГОТОВО</button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 60px; opacity: 0.5;">
+            <p style="font-size: 60px; margin: 0;">☕</p>
+            <p style="font-size: 1.2em;">Активных заказов нет. Время отдыха!</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div id="defectModal" class="modal">
+    <div class="modal-content">
+        <h2 style="color: #f59e0b; margin-top: 0;">🚨 Списать брак</h2>
+        <p style="font-size: 14px; color: #94a3b8;">Линза будет списана со склада, а в финансах зафиксируется убыток.</p>
+
+        <form action="/master/report_defect" method="POST">
+            <label>Какая линза испорчена?</label>
+            <select name="lens_id" required>
+                {% for l in lenses %}
+                <option value="{{ l.id }}">{{ l.vision }} ({{ l.stock }} шт)</option>
+                {% endfor %}
+            </select>
+
+            <label>Количество (шт):</label>
+            <input type="number" name="quantity" value="1" min="1" required>
+
+            <label>Причина (необязательно):</label>
+            <input type="text" name="reason" placeholder="Например: трещина при обточке">
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="submit" class="btn-complete" style="flex: 1;">ПОДТВЕРДИТЬ</button>
+                <button type="button" onclick="closeDefectModal()" class="btn-defect-trigger" style="background: #334155; color: white; flex: 1;">ОТМЕНА</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openDefectModal() {
+        document.getElementById('defectModal').style.display = 'block';
+    }
+    function closeDefectModal() {
+        document.getElementById('defectModal').style.display = 'none';
+    }
+    // Закрытие при клике вне окна
+    window.onclick = function(event) {
+        let modal = document.getElementById('defectModal');
+        if (event.target == modal) modal.style.display = "none";
+    }
+</script>
+
+</body>
+</html>
