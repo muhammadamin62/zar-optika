@@ -909,14 +909,23 @@ def manager_dashboard():
         """).fetchall()
 
         # Формируем список для HTML (упрощаем, чтобы не было ошибок)
+        # Формируем список для HTML
         defect_history = []
         for row in defect_rows:
+            desc = row['description']
+            # Пытаемся разделить строку "Брак: Мастер - Линза - Причина"
+            # Если формат другой, код не упадет, а просто запишет все в 'reason'
+            parts = desc.replace("Брак:", "").split("-")
+            
             defect_history.append({
                 'date': row['date'],
-                'full_desc': row['description'],  # Весь текст "Брак: линза..."
+                'master_name': parts[0].strip() if len(parts) > 0 else "Мастер",
+                'lens_name': parts[1].strip() if len(parts) > 1 else "Линза",
+                'quantity': "1", # Можно парсить из текста, если нужно
+                'reason': parts[-1].strip() if len(parts) > 0 else desc,
                 'amount': row['amount']
             })
-
+      
         # СУММАРНЫЙ РАСХОД
         total_expenses = standard_expenses + new_lens_costs + total_defect_sum
 
