@@ -147,37 +147,29 @@ def log_action(user_role, action, details):
 
 
 
-@app.route("/repair_db_final")
-def repair_db_final():
+@app.route("/repair_all")
+def repair_all():
     db = get_db()
-    try:
-        # Добавляем колонку в таблицу finance
-        db.execute("ALTER TABLE finance ADD COLUMN payment_method TEXT DEFAULT 'Наличные'")
-        db.commit()
-        return "✅ Успех: Колонка payment_method добавлена в таблицу FINANCE."
-    except Exception as e:
-        return f"⚠️ Ошибка или уже добавлено: {str(e)}"
-    finally:
-        db.close()
-@app.route("/repair_db")
-def repair_db():
-    db = get_db()
-    try:
-        # Проверяем, есть ли уже такая колонка, чтобы не вызвать новую ошибку
-        cursor = db.execute("PRAGMA table_info(orders)")
-        columns = [column[1] for column in cursor.fetchall()]
-        
-        if 'payment_method' not in columns:
-            db.execute("ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'Наличные'")
-            db.commit()
-            return "✅ Успех: Колонка payment_method добавлена в таблицу orders."
-        else:
-            return "ℹ️ Инфо: Колонка payment_method уже существует."
-    except Exception as e:
-        return f"❌ Ошибка: {str(e)}"
-    finally:
-        db.close()
-
+    results = []
+    tables_to_fix = ['orders', 'finance']
+    
+    for table in tables_to_fix:
+        try:
+            # Проверяем, есть ли уже колонка
+            cursor = db.execute(f"PRAGMA table_info({table})")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            if 'payment_method' not in columns:
+                db.execute(f"ALTER TABLE {table} ADD COLUMN payment_method TEXT DEFAULT 'Наличные'")
+                db.commit()
+                results.append(f"✅ Таблица {table}: добавлена колонка payment_method")
+            else:
+                results.append(f"ℹ️ Таблица {table}: колонка уже была")
+        except Exception as e:
+            results.append(f"❌ Ошибка в {table}: {str(e)}")
+            
+    db.close()
+    return "<br>".join(results)
 # Фильтр для красивых цен (1 000 000)
 @app.template_filter('format_price')
 def format_price(value):
