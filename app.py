@@ -1352,46 +1352,64 @@ def print_receipt(order_id):
 @login_required()
 def full_report():
     db = get_db()
-    month_start = datetime.now().strftime("%Y-%m-01")
+    
+    # 1. СЛУШАЕМ КНОПКИ (Получаем период из ссылки)
+    period = request.args.get('period', 'month') # по умолчанию 'month'
+    
+    # 2. ОПРЕДЕЛЯЕМ ТОЧКУ ОТСЧЕТА (Динамический фильтр)
+    now = datetime.now()
+    if period == 'day':
+        start_filter = now.strftime("%Y-%m-%d 00:00:00")
+    elif period == 'week':
+        start_filter = (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    else: # month
+        start_filter = now.strftime("%Y-%m-01 00:00:00")
 
-    # 1. Считаем реальные продажи (доход от клиентов)
-    pure_sales = \
-    db.execute("SELECT SUM(amount) FROM finance WHERE type = 'приход' AND date >= ?", (month_start,)).fetchone()[0] or 0
+    # 3. ИСПОЛЬЗУЕМ start_filter ВО ВСЕХ ЗАПРОСАХ
+    
+    # Считаем реальные продажи
+    pure_sales = db.execute(
+        "SELECT SUM(amount) FROM finance WHERE type = 'приход' AND date >= ?", (start_filter,)
+    ).fetchone()[0] or 0
 
-    # 2. Считаем твои личные вложения (пополнение из кармана)
-    my_investments = \
-    db.execute("SELECT SUM(amount) FROM finance WHERE type = 'вложение' AND date >= ?", (month_start,)).fetchone()[
-        0] or 0
+    # Считаем вложения
+    my_investments = db.execute(
+        "SELECT SUM(amount) FROM finance WHERE type = 'вложение' AND date >= ?", (start_filter,)
+    ).fetchone()[0] or 0
 
-    # 3. Считаем все расходы (закуп товара, аренда и т.д.)
-    all_costs = \
-    db.execute("SELECT SUM(amount) FROM finance WHERE type = 'расход' AND date >= ?", (month_start,)).fetchone()[0] or 0
+    # Считаем все расходы
+    all_costs = db.execute(
+        "SELECT SUM(amount) FROM finance WHERE type = 'расход' AND date >= ?", (start_filter,)
+    ).fetchone()[0] or 0
 
-    # ЛОГИКА ЦИФР:
-    # Чистая прибыль = Продажи - Расходы (Вложения тут не считаются доходом!)
+    # ЛОГИКА ЦИФР
     net_profit = pure_sales - all_costs
-
-    # Сейф (Остаток денег на руках) = (Продажи + Вложения) - Расходы
     cash_in_hand = (pure_sales + my_investments) - all_costs
 
-    # Данные для склада
+    # Данные для склада (всегда полные)
     frames_stock = db.execute("SELECT name, stock FROM frames").fetchall()
     lenses_stock = db.execute("SELECT vision, lens_type, stock FROM lenses").fetchall()
 
-    transactions = db.execute("SELECT * FROM finance WHERE date >= ? ORDER BY date DESC, id DESC",
-                              (month_start,)).fetchall()
+    # История операций за выбранный период
+    transactions = db.execute(
+        "SELECT * FROM finance WHERE date >= ? ORDER BY date DESC, id DESC", 
+        (start_filter,)
+    ).fetchall()
+    
     db.close()
 
+    # 4. ВОЗВРАЩАЕМ current_period В HTML
     return render_template("sales_report.html",
+                           current_period=period, # Важно для подсветки активной кнопки
                            frames=frames_stock,
                            lenses=lenses_stock,
                            total_frames=sum(f['stock'] for f in frames_stock),
                            total_lenses=sum(l['stock'] for l in lenses_stock),
-                           sales=pure_sales,  # Показываем только продажи
-                           investments=my_investments,  # Показываем вложения отдельно
-                           costs=all_costs,  # Показываем расходы
-                           net_profit=net_profit,  # Реальный плюс/минус бизнеса
-                           cash_on_hand=cash_in_hand,  # Сколько физически денег в кассе
+                           total_revenue=pure_sales,
+                           investments=my_investments,
+                           costs=all_costs,
+                           net_profit=net_profit,
+                           cash_on_hand=cash_in_hand,
                            transactions=transactions)
 @app.route("/master/lenses")
 @login_required("master")
