@@ -151,24 +151,37 @@ def log_action(user_role, action, details):
 def repair_all():
     db = get_db()
     results = []
-    tables_to_fix = ['orders', 'finance']
     
-    for table in tables_to_fix:
-        try:
-            # Проверяем, есть ли уже колонка
+    try:
+        # 1. Создаем таблицу для брака, если её нет
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS defective_lenses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lens_id INTEGER,
+                quantity INTEGER,
+                reason TEXT,
+                master_name TEXT,
+                date TEXT
+            )
+        """)
+        results.append("✅ Таблица defective_lenses готова")
+
+        # 2. Добавляем payment_method в orders и finance
+        for table in ['orders', 'finance']:
             cursor = db.execute(f"PRAGMA table_info({table})")
             columns = [col[1] for col in cursor.fetchall()]
-            
             if 'payment_method' not in columns:
                 db.execute(f"ALTER TABLE {table} ADD COLUMN payment_method TEXT DEFAULT 'Наличные'")
-                db.commit()
-                results.append(f"✅ Таблица {table}: добавлена колонка payment_method")
+                results.append(f"✅ В {table} добавлена колонка оплаты")
             else:
-                results.append(f"ℹ️ Таблица {table}: колонка уже была")
-        except Exception as e:
-            results.append(f"❌ Ошибка в {table}: {str(e)}")
-            
-    db.close()
+                results.append(f"ℹ️ В {table} колонки уже были")
+        
+        db.commit()
+    except Exception as e:
+        results.append(f"❌ Критическая ошибка: {str(e)}")
+    finally:
+        db.close()
+        
     return "<br>".join(results)
 # Фильтр для красивых цен (1 000 000)
 @app.template_filter('format_price')
