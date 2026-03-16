@@ -146,6 +146,19 @@ def log_action(user_role, action, details):
     db.close()
 
 
+
+@app.route("/repair_db_final")
+def repair_db_final():
+    db = get_db()
+    try:
+        # Добавляем колонку в таблицу finance
+        db.execute("ALTER TABLE finance ADD COLUMN payment_method TEXT DEFAULT 'Наличные'")
+        db.commit()
+        return "✅ Успех: Колонка payment_method добавлена в таблицу FINANCE."
+    except Exception as e:
+        return f"⚠️ Ошибка или уже добавлено: {str(e)}"
+    finally:
+        db.close()
 @app.route("/repair_db")
 def repair_db():
     db = get_db()
