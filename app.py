@@ -145,6 +145,26 @@ def log_action(user_role, action, details):
     db.commit()
     db.close()
 
+
+@app.route("/repair_db")
+def repair_db():
+    db = get_db()
+    try:
+        # Проверяем, есть ли уже такая колонка, чтобы не вызвать новую ошибку
+        cursor = db.execute("PRAGMA table_info(orders)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        if 'payment_method' not in columns:
+            db.execute("ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'Наличные'")
+            db.commit()
+            return "✅ Успех: Колонка payment_method добавлена в таблицу orders."
+        else:
+            return "ℹ️ Инфо: Колонка payment_method уже существует."
+    except Exception as e:
+        return f"❌ Ошибка: {str(e)}"
+    finally:
+        db.close()
+
 # Фильтр для красивых цен (1 000 000)
 @app.template_filter('format_price')
 def format_price(value):
