@@ -51,6 +51,10 @@ def get_db():
     conn = sqlite3.connect('optics_crm.db')
     conn.row_factory = sqlite3.Row # Позволяет обращаться к данным по именам (как к словарю)
     return conn
+    # Добавь timeout=10 (10 секунд ожидания)
+    conn = sqlite3.connect('optics_crm.db', timeout=10)
+    conn.row_factory = sqlite3.Row
+    return conn
 # Запускаем создание таблиц
 def init_db():
     db = get_db()
