@@ -443,10 +443,12 @@ def add_order():
         try:
             customer_name = request.form.get('customer_name')
             customer_phone = request.form.get('customer_phone')
-
-            # Получаем метод оплаты (Click, Наличные или Карта)
-            payment_method = request.form.get('payment_method', 'Наличные')
-
+            
+            # УБРАЛИ payment_method здесь, так как колонки в базе нет
+            
+            # Получаем цену, которую ввел продавец
+            total_price = int(request.form.get('custom_lens_price') or 0) 
+            
             is_repair = request.form.get('is_repair') == 'on'
             is_mini_repair = request.form.get('is_mini_repair') == 'on'
             is_client_frame = request.form.get('is_client_frame') == 'on'
@@ -454,65 +456,47 @@ def add_order():
             now_time = datetime.now().strftime("%Y-%m-%d %H:%M")
             date_only = datetime.now().strftime("%Y-%m-%d")
 
-            total_income = 0
             frame_id = None
-            l_price = int(request.form.get('custom_lens_price') or 0)
+            recipe = ""
 
-            if is_mini_repair:
-                total_income = int(request.form.get('mini_repair_price') or 0)
-                recipe = f"🛠 МИНИ-РЕМОНТ: {request.form.get('repair_comment')}"
-                status = "Выполнено"
-            else:
-                status = "Новый"
-                work_fee = 30000
-                if not is_repair:
-                    pd = request.form.get('pd')
-                    r_lens = request.form.get('lens_name_right')
-                    l_lens = request.form.get('lens_name_left')
-                    recipe = f"👓 R: {r_lens} | L: {l_lens} | PD: {pd}"
-
-                    if r_lens: db.execute("UPDATE lenses SET stock = stock - 1 WHERE (vision || ' ' || lens_type) = ?", (r_lens,))
-                    if l_lens: db.execute("UPDATE lenses SET stock = stock - 1 WHERE (vision || ' ' || lens_type) = ?", (l_lens,))
-                else:
-                    recipe = f"🔧 РЕМОНТ: {request.form.get('repair_comment')}"
-
-                if is_client_frame:
-                    f_name = "Оправа клиента"
-                else:
+            # Логика списания остатков
+            if not is_repair and not is_mini_repair:
+                r_lens = request.form.get('lens_name_right')
+                l_lens = request.form.get('lens_name_left')
+                recipe = f"👓 R: {r_lens} | L: {l_lens} | PD: {request.form.get('pd')}"
+                
+                if r_lens: db.execute("UPDATE lenses SET stock = stock - 1 WHERE (vision || ' ' || lens_type) = ?", (r_lens,))
+                if l_lens: db.execute("UPDATE lenses SET stock = stock - 1 WHERE (vision || ' ' || lens_type) = ?", (l_lens,))
+                
+                if not is_client_frame:
                     f_name = request.form.get('frame_name')
-                    frame = db.execute("SELECT id, sell_price FROM frames WHERE name = ?", (f_name,)).fetchone()
+                    frame = db.execute("SELECT id FROM frames WHERE name = ?", (f_name,)).fetchone()
                     if frame:
                         frame_id = frame['id']
                         db.execute("UPDATE frames SET stock = stock - 1 WHERE id = ?", (frame_id,))
-                        total_income += frame['sell_price']
+            else:
+                recipe = f"🔧 Ремонт: {request.form.get('repair_comment')}"
 
-                total_income += l_price + (0 if is_repair else work_fee)
+            # 1. ЗАПИСЬ В ЗАКАЗЫ (Убрали payment_method из колонок и значений)
+            status = "Выполнено" if is_mini_repair else "Новый"
+            db.execute("""INSERT INTO orders (customer_name, customer_phone, frame_id, total_price, status, date, comment)
+                          VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                       (customer_name, customer_phone, frame_id, total_price, status, now_time, recipe))
 
-            # 1. ЗАПИСЬ В ЗАКАЗЫ
-            db.execute("""INSERT INTO orders (customer_name, customer_phone, frame_id, total_price, status, date, comment, payment_method)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                       (customer_name, customer_phone, frame_id, total_income, status, now_time, recipe, payment_method))
+            # 2. ПРИХОД В ФИНАНСЫ (Убрали payment_method)
+            db.execute("""INSERT INTO finance (type, amount, description, date) 
+                          VALUES ('приход', ?, ?, ?)""",
+                       (total_price, f"Заказ: {customer_name}", date_only))
 
-            # 2. ПРИХОД В ФИНАНСЫ (Добавляем метку оплаты)
-            db.execute("""
-                INSERT INTO finance (type, amount, description, date, payment_method) 
-                VALUES ('приход', ?, ?, ?, ?)
-            """, (total_income, f"Заказ: {customer_name} | {payment_method}", date_only, payment_method))
-
-            # 3. РАСХОД (Себестоимость линз) - Списываем с того же метода оплаты!
-            if l_price > 0:
-                cost_lenses = l_price / 2
-                db.execute("""
-                    INSERT INTO finance (type, amount, description, date, payment_method) 
-                    VALUES ('расход', ?, ?, ?, ?)
-                """, (cost_lenses, f"Себест. линз: {customer_name}", date_only, payment_method))
+            # Логируем действие
+            log_action(session.get('user_role'), 'Новый заказ', f'Клиент: {customer_name}, Сумма: {total_price}')
 
             db.commit()
             return redirect(url_for('seller_dashboard'))
         except Exception as e:
             db.rollback()
-            print(f"ОШИБКА: {e}")
-            return f"Ошибка: {e}"
+            print(f"Ошибка: {e}") # Видно в консоли
+            return f"Ошибка при сохранении: {e}"
         finally:
             db.close()
 
@@ -925,88 +909,76 @@ def master_orders_list():  # имя функции может быть любы�
 def manager_dashboard():
     db = get_db()
     try:
-        # 1. ДЕНЕЖНЫЕ ПОТОКИ
+        # 1. ДОХОДЫ (Разделяем по типам для точности)
         total_income = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'приход'").fetchone()[0] or 0
         total_investments = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'вложение'").fetchone()[0] or 0
+        
+        # Доходы по методам оплаты (Добавлено!)
+        income_cash = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'приход' AND payment_method = 'Наличные'").fetchone()[0] or 0
+        income_card = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'приход' AND (payment_method = 'Карта' OR payment_method = 'Click')").fetchone()[0] or 0
 
-        # Расходы
+        # 2. РАСХОДЫ
         standard_expenses = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'расход'").fetchone()[0] or 0
+        # Регистрация — это обычно закупка товара на склад
         new_lens_costs = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'регистрация'").fetchone()[0] or 0
 
-        # --- ЛОГИКА БРАКА ---
-        # Считаем сумму убытка от брака
-        total_defect_sum = \
-        db.execute("SELECT SUM(amount) FROM finance WHERE LOWER(description) LIKE '%брак%'").fetchone()[0] or 0
+        # Сумма убытка от брака (ищем и в расходах, и по слову)
+        total_defect_sum = db.execute("SELECT SUM(amount) FROM finance WHERE description LIKE '%Брак%'").fetchone()[0] or 0
 
-        # Получаем список записей о браке для таблицы
+        # Список брака для таблицы
         defect_rows = db.execute("""
-            SELECT date, description, amount 
-            FROM finance 
-            WHERE LOWER(description) LIKE '%брак%' 
-            ORDER BY id DESC LIMIT 15
+            SELECT date, description, amount FROM finance 
+            WHERE description LIKE '%Брак%' ORDER BY id DESC LIMIT 10
         """).fetchall()
 
-        # Формируем список для HTML (упрощаем, чтобы не было ошибок)
-        # Формируем список для HTML
         defect_history = []
         for row in defect_rows:
-            desc = row['description']
-            # Пытаемся разделить строку "Брак: Мастер - Линза - Причина"
-            # Если формат другой, код не упадет, а просто запишет все в 'reason'
-            parts = desc.replace("Брак:", "").split("-")
-            
+            parts = row['description'].replace("Брак:", "").split("-")
             defect_history.append({
                 'date': row['date'],
                 'master_name': parts[0].strip() if len(parts) > 0 else "Мастер",
                 'lens_name': parts[1].strip() if len(parts) > 1 else "Линза",
-                'quantity': "1", # Можно парсить из текста, если нужно
-                'reason': parts[-1].strip() if len(parts) > 0 else desc,
+                'reason': parts[-1].strip() if len(parts) > 2 else "Не указана",
                 'amount': row['amount']
             })
-      
-        # СУММАРНЫЙ РАСХОД
-        total_expenses = standard_expenses + new_lens_costs + total_defect_sum
 
-        # 2. МАТЕМАТИКА
+        # 3. ИТОГОВАЯ МАТЕМАТИКА
+        # Общие затраты бизнеса (без учета личных вложений)
+        total_expenses = standard_expenses + new_lens_costs
+        
+        # Чистая прибыль (только заработанное минус потраченное)
         net_profit = total_income - total_expenses
+        
+        # Остаток в кассе (Деньги в наличии = Доход + Вложения - Расходы)
         cash_on_hand = (total_income + total_investments) - total_expenses
-        active_orders_count = db.execute("SELECT COUNT(*) FROM orders WHERE status != 'Готово'").fetchone()[0]
 
-        # 3. СКЛАД И ТОПЫ
-        lens_expenses = db.execute(
-            "SELECT * FROM finance WHERE type = 'расход' AND (description LIKE 'Закуп%' OR description LIKE 'Линзы%') ORDER BY id DESC LIMIT 5").fetchall()
-        new_lens_history = db.execute(
-            "SELECT * FROM finance WHERE type = 'регистрация' ORDER BY id DESC LIMIT 10").fetchall()
-
+        # 4. ЖУРНАЛ И СКЛАД
+        logs = db.execute("SELECT * FROM activity_log ORDER BY id DESC LIMIT 15").fetchall()
+        
         low_f = db.execute("SELECT name, stock FROM frames WHERE stock <= 1").fetchall()
         low_l = db.execute("SELECT (vision || ' ' || lens_type) as name, stock FROM lenses WHERE stock <= 1").fetchall()
-        low_stock = list(low_f) + list(low_l)
+        low_stock = [dict(row) for row in low_f] + [dict(row) for row in low_l]
 
-        top_frames = db.execute(
-            "SELECT f.name, COUNT(o.id) as sales_count FROM orders o JOIN frames f ON o.frame_id = f.id GROUP BY o.frame_id ORDER BY sales_count DESC LIMIT 5").fetchall()
-        top_others = db.execute(
-            "SELECT description, COUNT(*) as sales_count FROM finance WHERE type = 'приход' AND description LIKE 'Прочее:%' GROUP BY description ORDER BY sales_count DESC LIMIT 5").fetchall()
-
-        try:
-            logs = db.execute("SELECT * FROM activity_log ORDER BY id DESC LIMIT 10").fetchall()
-        except:
-            logs = []
+        active_orders_count = db.execute("SELECT COUNT(*) FROM orders WHERE status != 'Готово'").fetchone()[0]
 
         return render_template("manager_dashboard.html",
                                income=total_income,
+                               income_cash=income_cash,
+                               income_card=income_card,
                                investments=total_investments,
                                expenses=total_expenses,
-                               total_defect=total_defect_sum,  # Сумма убытка
-                               defect_history=defect_history,  # Список для таблицы
+                               total_defect=total_defect_sum,
+                               defect_history=defect_history,
                                net_profit=net_profit,
                                cash_on_hand=cash_on_hand,
                                low_stock=low_stock,
                                active_orders_count=active_orders_count,
-                               logs=logs,
-                               lens_expenses=lens_expenses,
-                               new_lens_history=new_lens_history,
-                               top_frames=top_frames,
-                               top_others=top_others)
+                               logs=logs)
+    except Exception as e:
+        print(f"ОШИБКА ДАШБОРДА: {e}")
+        return f"Ошибка дашборда: {e}"
+    finally:
+        db.close()
     finally:
         db.close()
 @app.route("/manager/finance/action", methods=["POST"])
@@ -1733,34 +1705,31 @@ def report_defect():
     try:
         lens_id = request.form.get('lens_id')
         qty = int(request.form.get('quantity') or 1)
-        reason = request.form.get('reason', 'Брак при установке')
-
-        # 1. Получаем данные о линзе
-        lens = db.execute("SELECT vision, price FROM lenses WHERE id = ?", (lens_id,)).fetchone()
-        if not lens: return "Ошибка: линза не найдена", 404
-
-        # 2. Считаем убыток (себестоимость линзы)
-        cost_per_piece = (lens['price'] or 0) / 2  # Берем 50% от цены продажи как закуп
-        total_loss = cost_per_piece * qty
+        reason = request.form.get('reason')
+        master_name = "Мастер" # Можно брать из сессии, если есть
         date_now = datetime.now().strftime("%Y-%m-%d")
 
-        # 3. Списываем со склада
+        # 1. Списываем линзу со склада
         db.execute("UPDATE lenses SET stock = stock - ? WHERE id = ?", (qty, lens_id))
+        
+        # 2. Получаем инфо о линзе для описания
+        lens = db.execute("SELECT vision, lens_type, price FROM lenses WHERE id = ?", (lens_id,)).fetchone()
+        loss_amount = (lens['price'] or 50000) * qty # Примерная сумма убытка
 
-        # 4. Записываем в таблицу брака
-        db.execute("""INSERT INTO defective_lenses (lens_id, quantity, reason, master_name, date) 
-                      VALUES (?, ?, ?, ?, ?)""", (lens_id, qty, reason, "Мастер", date_now))
-
-        # 5. Записываем в финансы как СПЕЦИАЛЬНЫЙ РАСХОД (Брак)
+        # 3. ЗАПИСЫВАЕМ В ФИНАНСЫ КАК РАСХОД (Чтобы Менеджер видел минус)
         db.execute("""INSERT INTO finance (type, amount, description, date) 
-                      VALUES ('брак', ?, ?, ?)""",
-                   (total_loss, f"⚠️ БРАК: {lens['vision']} ({qty} шт.)", date_now))
+                      VALUES ('расход', ?, ?, ?)""",
+                   (loss_amount, f"Брак: {master_name} - {lens['vision']} - {reason}", date_now))
 
+        log_action('Мастер', 'Брак', f"Испорчено: {lens['vision']} ({qty} шт)")
+        
         db.commit()
         return redirect(url_for('master_dashboard'))
+    except Exception as e:
+        db.rollback()
+        return f"Ошибка при списании брака: {e}"
     finally:
         db.close()
-
 
 @app.route("/master/lens/brake", methods=["POST"])
 @login_required("master")
