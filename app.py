@@ -772,17 +772,15 @@ def complete_order(order_id):
     db = get_db()
     today = datetime.now().strftime("%Y-%m-%d")
     try:
-        # Получаем инфо о заказе перед закрытием
         order = db.execute("SELECT comment FROM orders WHERE id = ?", (order_id,)).fetchone()
 
         # 1. Меняем статус
         db.execute("UPDATE orders SET status = 'Готово' WHERE id = ?", (order_id,))
 
-        # 2. Логика выплаты: если в комментарии есть "МИНИ-РЕМОНТ",
-        # можно платить меньше (например, 5000) или оставить 20000
+        # 2. Логика выплаты ЗП
         salary = 20000
-        if order and "МИНИ-РЕМОНТ" in order['comment']:
-            salary = 5000  # Пример для мелких работ
+        if order and order['comment'] and "МИНИ-РЕМОНТ" in order['comment']:
+            salary = 5000 
 
         db.execute("""INSERT INTO finance (type, amount, description, date) 
                       VALUES ('расход', ?, ?, ?)""",
@@ -794,7 +792,7 @@ def complete_order(order_id):
         db.rollback()
     finally:
         db.close()
-    return redirect(url_for('master_dashboard'))  # Возвращаем на главную мастера
+    return redirect(url_for('master_dashboard'))
 @app.route("/manager/lenses/add", methods=["POST"])
 @login_required()  # Теперь доступ есть и у мастера
 def process_lens_supply():
@@ -909,20 +907,15 @@ def master_orders_list():  # имя функции может быть любы�
 def manager_dashboard():
     db = get_db()
     try:
-        # 1. ДОХОДЫ (Разделяем по типам для точности)
+        # 1. ДОХОДЫ (Убрали payment_method, чтобы не было ошибок)
         total_income = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'приход'").fetchone()[0] or 0
         total_investments = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'вложение'").fetchone()[0] or 0
         
-        # Доходы по методам оплаты (Добавлено!)
-        income_cash = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'приход' AND payment_method = 'Наличные'").fetchone()[0] or 0
-        income_card = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'приход' AND (payment_method = 'Карта' OR payment_method = 'Click')").fetchone()[0] or 0
-
         # 2. РАСХОДЫ
         standard_expenses = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'расход'").fetchone()[0] or 0
-        # Регистрация — это обычно закупка товара на склад
         new_lens_costs = db.execute("SELECT SUM(amount) FROM finance WHERE type = 'регистрация'").fetchone()[0] or 0
 
-        # Сумма убытка от брака (ищем и в расходах, и по слову)
+        # Сумма убытка от брака
         total_defect_sum = db.execute("SELECT SUM(amount) FROM finance WHERE description LIKE '%Брак%'").fetchone()[0] or 0
 
         # Список брака для таблицы
@@ -943,13 +936,8 @@ def manager_dashboard():
             })
 
         # 3. ИТОГОВАЯ МАТЕМАТИКА
-        # Общие затраты бизнеса (без учета личных вложений)
         total_expenses = standard_expenses + new_lens_costs
-        
-        # Чистая прибыль (только заработанное минус потраченное)
         net_profit = total_income - total_expenses
-        
-        # Остаток в кассе (Деньги в наличии = Доход + Вложения - Расходы)
         cash_on_hand = (total_income + total_investments) - total_expenses
 
         # 4. ЖУРНАЛ И СКЛАД
@@ -963,8 +951,6 @@ def manager_dashboard():
 
         return render_template("manager_dashboard.html",
                                income=total_income,
-                               income_cash=income_cash,
-                               income_card=income_card,
                                investments=total_investments,
                                expenses=total_expenses,
                                total_defect=total_defect_sum,
@@ -979,8 +965,8 @@ def manager_dashboard():
         return f"Ошибка дашборда: {e}"
     finally:
         db.close()
-    finally:
-        db.close()
+    # ВТОРОЙ finally УДАЛЕН - ОШИБКИ БОЛЬШЕ НЕТ
+    
 @app.route("/manager/finance/action", methods=["POST"])
 @login_required("manager")
 def finance_action():
